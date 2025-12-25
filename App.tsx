@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppStatus, ImageFile, EvaluationResult, HistoryItem } from './types';
 import { evaluatePhotography } from './services/geminiService';
 
@@ -11,11 +11,9 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
-  // API Key & Base URL 状态
-  const [apiKey, setApiKey] = useState<string>('');
+  // 仅保留 Base URL 状态，API Key 强制使用 process.env.API_KEY
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [showKeyHint, setShowKeyHint] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,10 +25,7 @@ const App: React.FC = () => {
       try { setHistory(JSON.parse(savedHistory)); } catch (e) {}
     }
     // 加载配置
-    const savedKey = localStorage.getItem('focuslens_api_key');
     const savedBaseUrl = localStorage.getItem('focuslens_base_url');
-    if (savedKey) setApiKey(savedKey);
-    else setShowKeyHint(true);
     if (savedBaseUrl) setBaseUrl(savedBaseUrl);
   }, []);
 
@@ -40,12 +35,8 @@ const App: React.FC = () => {
   }, [history]);
 
   const saveSettings = () => {
-    setApiKey(apiKey);
-    setBaseUrl(baseUrl);
-    localStorage.setItem('focuslens_api_key', apiKey);
     localStorage.setItem('focuslens_base_url', baseUrl);
     setIsSettingsOpen(false);
-    setShowKeyHint(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,10 +77,6 @@ const App: React.FC = () => {
   };
 
   const startEvaluation = async () => {
-    if (!apiKey) {
-      setIsSettingsOpen(true);
-      return;
-    }
     if (images.length === 0) return;
 
     setStatus(AppStatus.LOADING);
@@ -98,6 +85,8 @@ const App: React.FC = () => {
 
     try {
       const base64List = images.map(img => img.base64);
+      // 直接从环境变量获取 API KEY
+      const apiKey = process.env.API_KEY || '';
       const markdown = await evaluatePhotography(base64List, apiKey, baseUrl);
       
       const newResult = {
@@ -108,7 +97,6 @@ const App: React.FC = () => {
       setResult(newResult);
       setStatus(AppStatus.SUCCESS);
 
-      // 改进的正则：支持中文冒号、括号、加粗、表情符号
       const ratingMatch = markdown.match(/综合评分.*[:：]\s*[\[【\*]*\s*([SABCD])\s*[\]】\*]*/i);
       const rating = ratingMatch ? ratingMatch[1].toUpperCase() : '-';
 
@@ -170,22 +158,11 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md transition-all">
           <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
             <h2 className="text-2xl font-black text-slate-900 mb-2">服务设置</h2>
-            <p className="text-sm text-slate-500 mb-6 font-medium">配置您的接口参数。FocusLens 将直接从浏览器调用 API，不经过任何中转服务器。</p>
+            <p className="text-sm text-slate-500 mb-6 font-medium">配置自定义接口地址。如果您使用代理，请在此输入。</p>
             
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Google Gemini API Key</label>
-                <input 
-                  type="password" 
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="粘贴您的 API Key..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">自定义 API Base URL (可选)</label>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">API Base URL (可选)</label>
                 <input 
                   type="text" 
                   value={baseUrl}
@@ -193,7 +170,11 @@ const App: React.FC = () => {
                   placeholder="例如: https://proxy.yourdomain.com"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
-                <p className="text-[10px] text-slate-400 mt-2 font-bold italic">留空则默认使用 Google 官方地址</p>
+                <div className="mt-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                   <p className="text-[10px] text-blue-700 leading-relaxed font-bold">
+                    💡 注意：请勿输入带有 /v1 或 /v1beta 的路径。SDK 会自动补全版本后缀。例如输入：https://api.domain.com
+                   </p>
+                </div>
               </div>
 
               <div className="pt-4 flex gap-3">
@@ -215,7 +196,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* History Sidebar - Changed top offset and z-index to not cover header */}
+      {/* History Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-[70] mt-[73px] w-80 bg-white shadow-2xl transform transition-transform duration-500 ease-out border-r border-slate-100 ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full pb-[73px]">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -277,7 +258,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Header - Increased z-index to stay above sidebar */}
+      {/* Header */}
       <header className="sticky top-0 z-[80] glass-header px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button 
@@ -295,14 +276,10 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {showKeyHint && (
-            <div className="hidden md:flex items-center gap-2 bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-100 animate-pulse">
-              <span className="text-[10px] font-black text-yellow-700">请配置 Key</span>
-            </div>
-          )}
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className={`p-2 rounded-xl transition-all ${apiKey ? 'text-slate-400 hover:text-blue-600' : 'text-yellow-600 bg-yellow-50'}`}
+            className={`p-2 rounded-xl transition-all text-slate-400 hover:text-blue-600 hover:bg-slate-100`}
+            title="接口设置"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -438,7 +415,7 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <span className="text-slate-500 text-sm font-bold">FocusLens AI Curator Engine v3.0</span>
               </div>
-              <p className="text-slate-400 text-xs italic">评审结果由用户提供的 API 进行艺术探讨</p>
+              <p className="text-slate-400 text-xs italic">评审结果由系统预设 API 提供技术支持</p>
             </div>
           </div>
         )}
