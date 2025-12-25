@@ -1,0 +1,7 @@
+{
+  "name": "FocusLens AI - 资深摄影导师",
+  "description": "一个专业的摄影作品AI评价系统，由拥有20年经验的虚拟导师为您提供深度、犀利的视觉点评与技术指导。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
