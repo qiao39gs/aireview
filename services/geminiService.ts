@@ -7,10 +7,13 @@ export async function evaluatePhotography(imagesBase64: string[], apiKey: string
     throw new Error('请先配置您的 Gemini API Key。');
   }
 
-  // 初始化时允许传入自定义 baseUrl (适配代理或中转接口)
+  // Google SDK 使用 apiEndpoint 而不是 baseUrl 来指定自定义域名
+  // 移除末尾斜杠以防冲突
+  const apiEndpoint = baseUrl?.trim().replace(/\/+$/, '') || undefined;
+
   const ai = new GoogleGenAI({ 
     apiKey,
-    baseUrl: baseUrl?.trim() || undefined 
+    apiEndpoint
   });
   
   const imageParts = imagesBase64.map(base64 => ({
@@ -23,7 +26,6 @@ export async function evaluatePhotography(imagesBase64: string[], apiKey: string
   const promptText = "请作为资深摄影导师，对我上传的这些摄影作品进行专业评审。";
 
   try {
-    // 使用 gemini-3-flash-preview 以获得更稳定的多模态支持并修复 404 错误
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
@@ -47,7 +49,7 @@ export async function evaluatePhotography(imagesBase64: string[], apiKey: string
       throw new Error('API Key 无效，请检查配置。');
     }
     if (error.message?.includes('NOT_FOUND') || error.message?.includes('404')) {
-      throw new Error('模型未找到或 API 地址错误，请检查您的 Base URL 是否配置正确。');
+      throw new Error('模型未找到或 API 地址错误。请注意：Base URL 应该是不带 /v1 的根地址（例如 https://api.yourproxy.com），SDK 会自动处理版本后缀。');
     }
     throw new Error(error.message || 'AI 评审过程中发生错误，请检查网络、Base URL 或 Key 权限。');
   }
