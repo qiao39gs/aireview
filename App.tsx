@@ -1,7 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AppStatus, ImageFile, EvaluationResult, HistoryItem } from './types';
-import { evaluatePhotography } from './services/geminiService';
 
 const App: React.FC = () => {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -10,34 +9,21 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  
-  // 仅保留 Base URL 状态，API Key 强制使用 process.env.API_KEY
-  const [baseUrl, setBaseUrl] = useState<string>('');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 初始化加载
+  // 初始化加载历史记录
   useEffect(() => {
-    // 加载历史
     const savedHistory = localStorage.getItem('focuslens_history');
     if (savedHistory) {
       try { setHistory(JSON.parse(savedHistory)); } catch (e) {}
     }
-    // 加载配置
-    const savedBaseUrl = localStorage.getItem('focuslens_base_url');
-    if (savedBaseUrl) setBaseUrl(savedBaseUrl);
   }, []);
 
   // 监听历史记录变化
   useEffect(() => {
     localStorage.setItem('focuslens_history', JSON.stringify(history.slice(0, 20)));
   }, [history]);
-
-  const saveSettings = () => {
-    localStorage.setItem('focuslens_base_url', baseUrl);
-    setIsSettingsOpen(false);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -85,9 +71,21 @@ const App: React.FC = () => {
 
     try {
       const base64List = images.map(img => img.base64);
-      // 直接从环境变量获取 API KEY
-      const apiKey = process.env.API_KEY || '';
-      const markdown = await evaluatePhotography(base64List, apiKey, baseUrl);
+
+      // 调用 Vercel API
+      const response = await fetch('/api/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: base64List })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '评审失败');
+      }
+
+      const markdown = data.markdown;
       
       const newResult = {
         markdown,
@@ -153,49 +151,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-20 bg-slate-50 relative overflow-x-hidden">
-      {/* Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md transition-all">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
-            <h2 className="text-2xl font-black text-slate-900 mb-2">服务设置</h2>
-            <p className="text-sm text-slate-500 mb-6 font-medium">配置自定义接口地址。如果您使用代理，请在此输入。</p>
-            
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">API Base URL (可选)</label>
-                <input 
-                  type="text" 
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="例如: https://proxy.yourdomain.com"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                />
-                <div className="mt-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                   <p className="text-[10px] text-blue-700 leading-relaxed font-bold">
-                    💡 注意：请勿输入带有 /v1 或 /v1beta 的路径。SDK 会自动补全版本后缀。例如输入：https://api.domain.com
-                   </p>
-                </div>
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button 
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors"
-                >
-                  取消
-                </button>
-                <button 
-                  onClick={saveSettings}
-                  className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all"
-                >
-                  保存配置
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* History Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-[70] mt-[73px] w-80 bg-white shadow-2xl transform transition-transform duration-500 ease-out border-r border-slate-100 ${isHistoryOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full pb-[73px]">
@@ -276,14 +231,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className={`p-2 rounded-xl transition-all text-slate-400 hover:text-blue-600 hover:bg-slate-100`}
-            title="接口设置"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button 
+          <button
             onClick={resetApp}
             className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-1.5"
           >
