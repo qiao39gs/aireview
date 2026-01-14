@@ -174,7 +174,7 @@ const App: React.FC = () => {
                 >
                   <div className="flex gap-3">
                     <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-200">
-                      <img src={item.images[0]?.preview} alt="Thumb" className="w-full h-full object-cover" />
+                      <img src={item.images[0]?.base64 || item.images[0]?.preview} alt="Thumb" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
@@ -278,7 +278,7 @@ const App: React.FC = () => {
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-6">
               {images.map(img => (
                 <div key={img.id} className="relative group aspect-square rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white">
-                  <img src={img.preview} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                  <img src={img.base64 || img.preview} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                   <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button 
                       onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}

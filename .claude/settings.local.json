@@ -4,7 +4,8 @@
       "Bash(git add -A)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: 将API配置改为环境变量方式\n\n- 新增 Vercel API 路由 \\(api/evaluate.ts\\) 处理 Gemini 调用\n- 删除前端设置页面和设置按钮\n- 删除 geminiService.ts，API 调用移至服务端\n- 清理 vite.config.ts 中的环境变量注入\n- 环境变量: GEMINI_API_KEY, GOOGLE_GEMINI_BASE_URL, GEMINI_MODEL\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 添加 React 依赖和 Vite 插件\n\n- 添加 react, react-dom 依赖\n- 添加 @types/react, @types/react-dom 类型定义\n- 添加 @vitejs/plugin-react 插件\n- 更新 vite.config.ts 启用 React 插件\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 添加 React 依赖和 Vite 插件\n\n- 添加 react, react-dom 依赖\n- 添加 @types/react, @types/react-dom 类型定义\n- 添加 @vitejs/plugin-react 插件\n- 更新 vite.config.ts 启用 React 插件\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 修复历史评审图片无法显示的问题\n\n使用 base64 替代 preview URL 显示图片，因为 URL.createObjectURL\n创建的临时 URL 在页面刷新后会失效\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
